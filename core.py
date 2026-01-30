@@ -13,6 +13,10 @@ from torchvision import datasets, transforms
 class core:
     """Implement generalisation methods, for all models"""
 
+    def __init__(self, device):
+        """Constructor"""
+        self.device = device
+
     def load_split_data(self, percentage: list[int] = [0.8, 0.2]) -> tuple:
         """Load from the path and split dataset in train, validation and test part
 
@@ -23,6 +27,7 @@ class core:
             tuple: train, val, test dataset
         """
         transform = transforms.Compose([
+            transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
         ])
         train_dataset = datasets.ImageFolder(root="./assets/img/archive/train", transform=transform)
@@ -51,8 +56,9 @@ class core:
         running_loss = 0.0
         i = 0
         for x, t in train_loader:
+            x, t = x.to(self.device), t.to(self.device)
             y = model(x)
-            loss = loss_func(t, y)
+            loss = loss_func(y, t) # try to change the parameters from t, y -> y, t
             loss.backward()
             optim.step()
             optim.zero_grad()
@@ -88,10 +94,12 @@ class core:
         running_loss = 0.0
         model.eval()  
         for x, t in val_loader:
+            x, t = x.to(self.device), t.to(self.device)
             y = model(x)
-            loss = loss_func(t, y)
+            loss = loss_func(y, t)
             loss_total += loss
-            acc += (torch.argmax(y, 1) == torch.argmax(t, 1)).sum().item()
+            # acc += (torch.argmax(y, 1) == torch.argmax(t, 1)).sum().item()
+            acc += (torch.argmax(y, dim=1) == t).sum().item()
             total_samples += t.size(0)
             running_loss += loss.item()
             if i % 1000 == 999:  # every 1000 mini-batches...
@@ -175,6 +183,7 @@ class core:
         acc = 0.0
         test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
         for x, t in test_loader:
+            x, t = x.to(self.device), t.to(self.device)
             y = best_model(x)
-            acc += torch.argmax(y, 1) == torch.argmax(t, 1)
+            acc += (torch.argmax(y, dim=1) == t).sum().item()
         print(acc / len(test_dataset))

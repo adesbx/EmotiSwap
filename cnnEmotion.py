@@ -2,7 +2,7 @@ import optuna
 import torch
 import time
 from torch import Tensor
-from torch.nn import Module, Linear, Conv2d
+from torch.nn import Module, Linear, Conv2d, AdaptiveAvgPool2d, Flatten, BatchNorm2d, Dropout
 from torch.utils.tensorboard import SummaryWriter
 from optuna.trial import TrialState
 from optuna import Trial
@@ -19,18 +19,24 @@ class CnnEmotion(Module):
         Module (nn.Module): basic class of neural network
     """
    
-    def __init__(self):
+    def __init__(self, dropout=0.4):
         """Constructor
         
         """
         super(CnnEmotion, self).__init__()
-        self.conv1 = Conv2d(1, 6, kernel_size=(5, 5))
-        self.conv2 = Conv2d(6, 16, kernel_size=(5, 5))
+        self.conv1 = Conv2d(1, 32, kernel_size=(3, 3), padding=1)
+        self.conv2 = Conv2d(32, 64, kernel_size=(3, 3), padding=1)
+        self.conv3 = Conv2d(64, 128, kernel_size=(3, 3), padding=1)
 
-        self.fc1 = Linear(16 * 9 * 9, 120)
-        self.fc2 = Linear(120, 84)
+        self.bn1 = BatchNorm2d(32)
+        self.bn2 = BatchNorm2d(64)
+        self.bn3 = BatchNorm2d(128)
 
-        self.output = Linear(84, 7)
+        self.adavgpool = AdaptiveAvgPool2d(1)
+        self.dropout = Dropout(dropout)
+
+        self.fc1 = Linear(128, 128)
+        self.output = Linear(128, 7)
 
     def forward(self, x: Tensor) -> Tensor:
         """Process of a neuron in the model
@@ -41,15 +47,22 @@ class CnnEmotion(Module):
         Returns:
             Tensor: output of the neuron
         """
-        x = x.view(-1, 1, 48, 48)
 
-        x = F.relu(self.conv1(x))
-        x = F.max_pool2d(x, kernel_size=(2, 2))
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, kernel_size=(2, 2))
-        x = x.view(-1, 16 * 9 * 9)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.max_pool2d(x, kernel_size=(2, 2), stride=2)
+
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.max_pool2d(x, kernel_size=(2, 2), stride=2)
+
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.max_pool2d(x, kernel_size=(2, 2), stride=2)
+
+        x = self.adavgpool(x)
+
+        x = torch.flatten(x, start_dim=1)
+
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
         output = self.output(x)
 
         return output
@@ -65,7 +78,7 @@ def objective(trial: Trial) -> float:
     """
     global test_dataset_g
     model = CnnEmotion()
-
+    model.to(device)
     # Generate the optimizers.
     optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "SGD"])
     lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
@@ -122,7 +135,12 @@ def objective(trial: Trial) -> float:
     return accuracy
 
 if __name__ == "__main__":
-    core = core()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    print(f"Using device: {device}")
+
+
+    core = core(device=device)
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=1000,  timeout=10800)
 
@@ -144,3 +162,5 @@ if __name__ == "__main__":
         print("    {}: {}".format(key, value))
 
     core.final_test(trial.user_attrs["model"], test_dataset_g)
+
+    torch.save(trial.user_attrs["model"].state_dict(), "./assets/models")
