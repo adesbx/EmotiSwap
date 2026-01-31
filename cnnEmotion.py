@@ -80,14 +80,14 @@ def objective(trial: Trial) -> float:
     model = CnnEmotion()
     model.to(device)
     # Generate the optimizers.
-    optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "SGD"])
-    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    optimizer_name = trial.suggest_categorical("optimizer", ["Adam"])
+    lr = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
 
     # Get the dataset.
     train_dataset, val_dataset, test_dataset = core.load_split_data()
     test_dataset_g = test_dataset
-    batch_size = trial.suggest_int("batch", 3, 100)
+    batch_size = trial.suggest_int("batch", 8, 64) 
     loss_func = torch.nn.CrossEntropyLoss()
     # Training of the model.
     start_time = time.time()
@@ -132,17 +132,18 @@ def objective(trial: Trial) -> float:
     #         "hparam/time": elapsed_time,
     #     },
     # )
+    torch.cuda.empty_cache()
     return accuracy
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+    # device = "cpu" # force pour passer en cpu only
     print(f"Using device: {device}")
 
 
     core = core(device=device)
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=1000,  timeout=10800)
+    study.optimize(objective, n_trials=20,  timeout=5000)
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
@@ -163,4 +164,4 @@ if __name__ == "__main__":
 
     core.final_test(trial.user_attrs["model"], test_dataset_g)
 
-    torch.save(trial.user_attrs["model"].state_dict(), "./assets/models")
+    torch.save(trial.user_attrs["model"].state_dict(), "./assets/models/model.pth")

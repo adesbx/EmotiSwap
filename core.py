@@ -93,23 +93,24 @@ class core:
         i = 0.0
         running_loss = 0.0
         model.eval()  
-        for x, t in val_loader:
-            x, t = x.to(self.device), t.to(self.device)
-            y = model(x)
-            loss = loss_func(y, t)
-            loss_total += loss
-            # acc += (torch.argmax(y, 1) == torch.argmax(t, 1)).sum().item()
-            acc += (torch.argmax(y, dim=1) == t).sum().item()
-            total_samples += t.size(0)
-            running_loss += loss.item()
-            if i % 1000 == 999:  # every 1000 mini-batches...
-                # ...log the running loss
-                # writer.add_scalar(
-                #     "loss/validation", running_loss / 1000, epoch * len(val_loader) + i
-                # )
-                running_loss = 0.0
-            i += 1
-        return loss_total / len(val_loader), acc / total_samples
+        with torch.no_grad():
+            for x, t in val_loader:
+                x, t = x.to(self.device), t.to(self.device)
+                y = model(x)
+                loss = loss_func(y, t)
+                loss_total += loss
+                # acc += (torch.argmax(y, 1) == torch.argmax(t, 1)).sum().item()
+                acc += (torch.argmax(y, dim=1) == t).sum().item()
+                total_samples += t.size(0)
+                running_loss += loss.item()
+                if i % 1000 == 999:  # every 1000 mini-batches...
+                    # ...log the running loss
+                    # writer.add_scalar(
+                    #     "loss/validation", running_loss / 1000, epoch * len(val_loader) + i
+                    # )
+                    running_loss = 0.0
+                i += 1
+            return loss_total / len(val_loader), acc / total_samples
 
     def training_early_stopping(
         self,
@@ -120,7 +121,7 @@ class core:
         loss_func: MSELoss | CrossEntropyLoss,
         optim: MSELoss | Adam,
         trial: Trial = None,
-        max_epochs: int = 100,
+        max_epochs: int = 20,
         min_delta: int = 0.0005,
         patience: int = 10,
     ) -> tuple:
