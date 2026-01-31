@@ -4,9 +4,11 @@ import time
 from torch import Tensor
 from torch.nn import Module, Linear, Conv2d, AdaptiveAvgPool2d, Flatten, BatchNorm2d, Dropout
 from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import TensorDataset
 from optuna.trial import TrialState
 from optuna import Trial
 from core import core
+from collections import Counter
 
 import torch.nn.functional as F
 
@@ -67,6 +69,20 @@ class CnnEmotion(Module):
 
         return output
     
+def compute_class_weight(dataset: TensorDataset, num_classes: int) -> Tensor: 
+    targets = [label for _, label in dataset]
+
+    counts  = Counter(targets)
+
+    total = len(targets)
+    weight = []
+
+    for i in range(num_classes):
+        weight.append(total / (num_classes * counts[i]))
+
+    return torch.tensor(weight, dtype=torch.float)
+
+    
 def objective(trial: Trial) -> float:
     """Function to maximise
 
@@ -88,7 +104,10 @@ def objective(trial: Trial) -> float:
     train_dataset, val_dataset, test_dataset = core.load_split_data()
     test_dataset_g = test_dataset
     batch_size = trial.suggest_int("batch", 8, 64) 
-    loss_func = torch.nn.CrossEntropyLoss()
+    weight = compute_class_weight(train_dataset, 7)
+    weight.to(device)
+    loss_func = torch.nn.CrossEntropyLoss(weight)
+    loss_func.to(device)
     # Training of the model.
     start_time = time.time()
     model_trained, nb_epoch, local_loss_mean, accuracy = core.training_early_stopping(

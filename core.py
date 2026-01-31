@@ -1,6 +1,7 @@
 import torch
 import optuna
 from optuna import Trial
+from torch import Tensor
 from torch.utils.data import random_split, DataLoader, TensorDataset
 from torch.optim import SGD, Adam
 from torch.utils.tensorboard import SummaryWriter
@@ -58,6 +59,7 @@ class core:
         for x, t in train_loader:
             x, t = x.to(self.device), t.to(self.device)
             y = model(x)
+
             loss = loss_func(y, t) # try to change the parameters from t, y -> y, t
             loss.backward()
             optim.step()
@@ -188,3 +190,6 @@ class core:
             y = best_model(x)
             acc += (torch.argmax(y, dim=1) == t).sum().item()
         print(acc / len(test_dataset))
+
+
+
