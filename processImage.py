@@ -1,9 +1,11 @@
 import cv2
 import torch
+import random
 import matplotlib.pyplot as plt
 from cnnEmotion import CnnEmotion
 from torchvision import transforms
 from PIL import Image
+from pathlib import Path
 
 def detectFace(path: str):
     img = cv2.imread(path)
@@ -35,6 +37,29 @@ def detectFace(path: str):
     crop_img = img_rgb[y:y+h, x:x+w]
     crop_img = cv2.resize(crop_img, dsize=[48, 48])
     cv2.imwrite("./assets/img/test/crop.jpg", crop_img)
+
+def randomImage(path: str):
+    images = list(Path(path).glob("*"))
+    images = [img for img in images if img.suffix.lower() in
+              {".png", ".jpg", ".jpeg"}]
+    return str(random.choice(images)) if images else None
+
+def chooseAssociatedImage(emotion: str) -> str :
+    match emotion:
+        case "angry":
+            return randomImage("./assets/img/imagesToSwap/angry")
+        case "disgust":
+            return randomImage("./assets/img/imagesToSwap/disgust")
+        case "fear":
+            return randomImage("./assets/img/imagesToSwap/fear")
+        case "happy":
+            return randomImage("./assets/img/imagesToSwap/happy")
+        case "neutral":
+            return randomImage("./assets/img/imagesToSwap/neutral")
+        case "sad":
+            return randomImage("./assets/img/imagesToSwap/sad")
+        case "surprise":
+            return randomImage("./assets/img/imagesToSwap/surprise")
 
 detectFace("./assets/img/test/sad.jpg")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -75,3 +100,10 @@ with torch.no_grad():
 print(f"Classe prédite : {pred_class}")
 print(f"Confiance : {confidence:.3f}")
 print("Emotion :", idx_to_class[pred_class])
+
+pathImgToShow = chooseAssociatedImage(idx_to_class[pred_class])
+imgToShow = cv2.imread(pathImgToShow)
+plt.figure(figsize=(10,10))
+plt.imshow(imgToShow)
+plt.axis('off')
+plt.show()
