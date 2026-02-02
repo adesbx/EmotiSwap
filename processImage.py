@@ -2,10 +2,14 @@ import cv2
 import torch
 import random
 import matplotlib.pyplot as plt
+import numpy as np
+import pyvirtualcam
+from pyvirtualcam import PixelFormat
 from cnnEmotion import CnnEmotion
 from torchvision import transforms
 from PIL import Image
 from pathlib import Path
+
 
 def detectFace(path: str):
     img = cv2.imread(path)
@@ -118,45 +122,54 @@ model.to(device)
 model.eval()
 
 video_capture = cv2.VideoCapture(0)
+last_emotion = ""
+with pyvirtualcam.Camera(width=1280, height=720, fps=30, fmt=PixelFormat.RGB) as cam:
 
-while True:
-    result, video_frame = video_capture.read()
+    while True:
+        result, video_frame = video_capture.read()
 
-    if result is False:
-        break
+        if result is False:
+            break
 
-    image = detectFaceVideo(video_frame)
-    image = Image.fromarray(image)
-    x = transform(image)
-    x = x.unsqueeze(0)  
-    x = x.to(device)
+        image = detectFaceVideo(video_frame)
+        image = Image.fromarray(image)
+        x = transform(image)
+        x = x.unsqueeze(0)  
+        x = x.to(device)
 
-    with torch.no_grad():
-        logits = model(x)
-        probs = torch.softmax(logits, dim=1)
-        pred_class = torch.argmax(probs, dim=1).item()
-        confidence = probs[0, pred_class].item()
+        with torch.no_grad():
+            logits = model(x)
+            probs = torch.softmax(logits, dim=1)
+            pred_class = torch.argmax(probs, dim=1).item()
+            confidence = probs[0, pred_class].item()
 
-    print(f"Classe prédite : {pred_class}")
-    print(f"Confiance : {confidence:.3f}")
-    print("Emotion :", idx_to_class[pred_class])
+        print(f"Classe prédite : {pred_class}")
+        print(f"Confiance : {confidence:.3f}")
+        print("Emotion :", idx_to_class[pred_class])
+        if idx_to_class[pred_class] != last_emotion:
+            last_emotion = idx_to_class[pred_class]
+            pathImgToShow = chooseAssociatedImage(idx_to_class[pred_class])
+            imgToShow = cv2.imread(pathImgToShow)
+        #     plt.figure(figsize=(10,10))
+        #     plt.imshow(imgToShow)
+        #     plt.axis('off')
+        #     plt.text(
+        #     0, 0,              
+        #     idx_to_class[pred_class],           
+        #     color="blue",
+        #     fontsize=20,
+        #     bbox=dict(facecolor="black", alpha=0.5)
+        # )
+            # plt.show()
 
-    pathImgToShow = chooseAssociatedImage(idx_to_class[pred_class])
-    imgToShow = cv2.imread(pathImgToShow)
-    plt.figure(figsize=(10,10))
-    plt.imshow(imgToShow)
-    plt.axis('off')
-    plt.text(
-    0, 0,              
-    idx_to_class[pred_class],           
-    color="blue",
-    fontsize=20,
-    bbox=dict(facecolor="black", alpha=0.5)
-)
-    plt.show()
+        imgToShow = cv2.resize(imgToShow, dsize=[1280, 720])
 
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+        cam.send(imgToShow)
+        cam.sleep_until_next_frame()
 
-video_capture.release()
-cv2.destroyAllWindows()
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+# video_capture.release()
+# cv2.destroyAllWindows()
