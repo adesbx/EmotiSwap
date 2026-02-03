@@ -53,9 +53,9 @@ def detectFaceVideo(video_frame: cv2.typing.MatLike) -> cv2.typing.MatLike :
         gray_image, scaleFactor=1.1, minNeighbors=5, minSize=(40, 40)
     )
 
-    # for (x, y, w, h) in face: # show the face with an rectangle
-    #     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 4)
-
+    if len(face) == 0:
+        return None
+    
     img_rgb = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
 
     # plt.figure(figsize=(20,10))
@@ -145,10 +145,17 @@ with pyvirtualcam.Camera(width=1280, height=720, fps=30, fmt=PixelFormat.RGB) as
     while True:
         result, video_frame = video_capture.read()
 
-        if result is False:
-            break
-
         image = detectFaceVideo(video_frame)
+
+        if result is False or image is None:
+            
+            default = cv2.imread("./assets/img/imagesToSwap/default_image.jpg") # image pas défaut
+            default = cv2.resize(default, dsize=[1280, 720])
+            default = cv2.cvtColor(default, cv2.COLOR_BGR2RGB)
+            cam.send(default)
+            cam.sleep_until_next_frame()
+            continue
+
         image = Image.fromarray(image)
         x = transform(image)
         x = x.unsqueeze(0)  
@@ -169,6 +176,7 @@ with pyvirtualcam.Camera(width=1280, height=720, fps=30, fmt=PixelFormat.RGB) as
             pathImgToShow = chooseAssociatedImage(idx_to_class[pred_class])
             imgToShow = cv2.imread(pathImgToShow)
             imgToShow = cv2.resize(imgToShow, dsize=[1280, 720])
+            imgToShow = cv2.cvtColor(imgToShow, cv2.COLOR_BGR2RGB)
 
         if len(emotionQueue) >= successive_frame:
             emotionQueue.popleft()
