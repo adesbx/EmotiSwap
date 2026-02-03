@@ -9,7 +9,7 @@ from cnnEmotion import CnnEmotion
 from torchvision import transforms
 from PIL import Image
 from pathlib import Path
-
+from collections import deque
 
 def detectFace(path: str):
     img = cv2.imread(path)
@@ -96,6 +96,17 @@ def chooseAssociatedImage(emotion: str) -> str :
             return randomImage("./assets/img/imagesToSwap/sad")
         case "surprise":
             return randomImage("./assets/img/imagesToSwap/surprise")
+        
+def compareQueue(queue, actual_emotion, x) -> bool:
+    if len(queue) >= x:
+        copie_queue = deque()
+        for _ in range(x):
+            copie_queue.append(actual_emotion)
+        
+        if queue == copie_queue:
+            return True
+        
+    return False
 
 # detectFace(path="./assets/img/test/sad.jpg")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -122,8 +133,14 @@ model.to(device)
 model.eval()
 
 video_capture = cv2.VideoCapture(0)
+emotionQueue = deque()
+successive_frame = 5
 last_emotion = ""
 with pyvirtualcam.Camera(width=1280, height=720, fps=30, fmt=PixelFormat.RGB) as cam:
+    firstFrame = cv2.imread("./assets/img/imagesToSwap/neutral/neutral_cat_01.png") # trouver une meilleur manière # fait pour avoir une image de base (éviter le logo OBS)
+    firstFrame = cv2.resize(firstFrame, dsize=[1280, 720])
+    cam.send(firstFrame)
+    cam.sleep_until_next_frame()
 
     while True:
         result, video_frame = video_capture.read()
@@ -146,26 +163,21 @@ with pyvirtualcam.Camera(width=1280, height=720, fps=30, fmt=PixelFormat.RGB) as
         print(f"Classe prédite : {pred_class}")
         print(f"Confiance : {confidence:.3f}")
         print("Emotion :", idx_to_class[pred_class])
-        if idx_to_class[pred_class] != last_emotion:
+
+        if last_emotion != idx_to_class[pred_class]: #si émotion différente nouvelle image a afficher
             last_emotion = idx_to_class[pred_class]
             pathImgToShow = chooseAssociatedImage(idx_to_class[pred_class])
             imgToShow = cv2.imread(pathImgToShow)
-        #     plt.figure(figsize=(10,10))
-        #     plt.imshow(imgToShow)
-        #     plt.axis('off')
-        #     plt.text(
-        #     0, 0,              
-        #     idx_to_class[pred_class],           
-        #     color="blue",
-        #     fontsize=20,
-        #     bbox=dict(facecolor="black", alpha=0.5)
-        # )
-            # plt.show()
+            imgToShow = cv2.resize(imgToShow, dsize=[1280, 720])
 
-        imgToShow = cv2.resize(imgToShow, dsize=[1280, 720])
+        if len(emotionQueue) >= successive_frame:
+            emotionQueue.popleft()
 
-        cam.send(imgToShow)
-        cam.sleep_until_next_frame()
+        emotionQueue.append(idx_to_class[pred_class])
+
+        if compareQueue(emotionQueue, idx_to_class[pred_class], successive_frame):
+            cam.send(imgToShow)
+            cam.sleep_until_next_frame()
 
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
