@@ -1,6 +1,7 @@
 import cv2
 import torch
 import random
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvirtualcam
@@ -111,15 +112,11 @@ def compareQueue(queue, actual_emotion, x) -> bool:
 # detectFace(path="./assets/img/test/sad.jpg")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-idx_to_class = { # fait a la main a partir de l'ordre des dossiers dans assets/img/archive
-    0: "angry",
-    1: "disgust",
-    2: "fear",
-    3: "happy",
-    4: "neutral",
-    5: "sad",
-    6: "surprise"
-}
+with open("./assets/models/class_to_idx.json", "r") as f:
+    class_to_idx = json.load(f)
+
+idx_to_class = {v: k for k, v in class_to_idx.items()}
+
 
 transform = transforms.Compose([
     transforms.Grayscale(num_output_channels=1),

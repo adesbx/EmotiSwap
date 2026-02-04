@@ -1,5 +1,6 @@
 import torch
 import optuna
+import json
 from optuna import Trial
 from torch import Tensor
 from torch.utils.data import random_split, DataLoader, TensorDataset
@@ -29,11 +30,22 @@ class core:
         """
         transform = transforms.Compose([
             transforms.Grayscale(num_output_channels=1),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(10),
+            transforms.RandomResizedCrop(48, scale=(0.9, 1.0)),
             transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5]),
         ])
         train_dataset = datasets.ImageFolder(root="./assets/img/archive/train", transform=transform)
         train_dataset, val_dataset = random_split(train_dataset, percentage)
         test_dataset = datasets.ImageFolder(root="./assets/img/archive/test", transform=transform)
+
+
+        class_to_idx = train_dataset.dataset.class_to_idx 
+
+        with open("./assets/models/class_to_idx.json", "w") as f:
+            json.dump(class_to_idx, f, indent=4)
+
         return train_dataset, val_dataset, test_dataset
 
     def train_step(

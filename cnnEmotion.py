@@ -29,15 +29,18 @@ class CnnEmotion(Module):
         self.conv1 = Conv2d(1, 32, kernel_size=(3, 3), padding=1)
         self.conv2 = Conv2d(32, 64, kernel_size=(3, 3), padding=1)
         self.conv3 = Conv2d(64, 128, kernel_size=(3, 3), padding=1)
+        self.conv4 = Conv2d(128, 256, kernel_size=(3, 3), padding=1)
 
         self.bn1 = BatchNorm2d(32)
         self.bn2 = BatchNorm2d(64)
         self.bn3 = BatchNorm2d(128)
+        self.bn4 = BatchNorm2d(256)
 
         self.adavgpool = AdaptiveAvgPool2d(1)
         self.dropout = Dropout(dropout)
 
-        self.fc1 = Linear(128, 128)
+        self.fc1 = Linear(256, 256)
+        self.fc2 = Linear(256, 128)
         self.output = Linear(128, 7)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -59,11 +62,16 @@ class CnnEmotion(Module):
         x = F.relu(self.bn3(self.conv3(x)))
         x = F.max_pool2d(x, kernel_size=(2, 2), stride=2)
 
+        x = F.relu(self.bn4(self.conv4(x)))
+
         x = self.adavgpool(x)
 
         x = torch.flatten(x, start_dim=1)
 
         x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+
+        x = F.relu(self.fc2(x))
         x = self.dropout(x)
         output = self.output(x)
 
@@ -106,7 +114,7 @@ def objective(trial: Trial) -> float:
     batch_size = trial.suggest_int("batch", 8, 64) 
     weight = compute_class_weight(train_dataset, 7)
     weight.to(device)
-    loss_func = torch.nn.CrossEntropyLoss(weight)
+    loss_func = torch.nn.CrossEntropyLoss(weight, label_smoothing=0.1)
     loss_func.to(device)
     # Training of the model.
     start_time = time.time()
