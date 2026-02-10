@@ -5,6 +5,7 @@ from torch import Tensor
 from torch.nn import Module, Linear, Conv2d, AdaptiveAvgPool2d, Flatten, BatchNorm2d, Dropout
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import TensorDataset
+from torchvision.models import resnet18
 from optuna.trial import TrialState
 from optuna import Trial
 from core import core
@@ -100,8 +101,16 @@ def objective(trial: Trial) -> float:
     Returns:
         float: accuracy of the model tuned
     """
-    global test_dataset_g
-    model = CnnEmotion()
+    global test_dataset_g, model_to_use
+    if model_to_use == "cnn":
+        model = CnnEmotion()
+    elif model_to_use == "resnet":
+        model = resnet18(weights="IMAGENET1K_V1")
+        model.conv1 = Conv2d(
+            1, 64, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        model.fc = Linear(model.fc.in_features, 7)
+    print("MODEL USED: ", model_to_use)
     model.to(device)
     # Generate the optimizers.
     optimizer_name = trial.suggest_categorical("optimizer", ["Adam"])
@@ -163,6 +172,8 @@ def objective(trial: Trial) -> float:
     return accuracy
 
 if __name__ == "__main__":
+    global model_to_use
+    model_to_use = "resnet"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = "cpu" # force pour passer en cpu only
     print(f"Using device: {device}")
@@ -191,4 +202,7 @@ if __name__ == "__main__":
 
     core.final_test(trial.user_attrs["model"], test_dataset_g)
 
-    torch.save(trial.user_attrs["model"].state_dict(), "./assets/models/model.pth")
+    if model_to_use == "cnn":
+        torch.save(trial.user_attrs["model"].state_dict(), "./assets/models/model_cnn.pth")
+    elif model_to_use == "resnet":
+        torch.save(trial.user_attrs["model"].state_dict(), "./assets/models/model_resnet.pth")

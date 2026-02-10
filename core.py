@@ -29,10 +29,11 @@ class core:
             tuple: train, val, test dataset
         """
         transform = transforms.Compose([
+            transforms.Resize(96,96),
             transforms.Grayscale(num_output_channels=1),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomRotation(10),
-            transforms.RandomResizedCrop(48, scale=(0.9, 1.0)),
+            transforms.RandomResizedCrop(96, scale=(0.9, 1.0)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5]),
         ])
