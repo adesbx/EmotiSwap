@@ -29,7 +29,7 @@ class core:
             tuple: train, val, test dataset
         """
         transform = transforms.Compose([
-            transforms.Resize(96,96),
+            transforms.Resize((96,96)), # if using cnn may need to back this to 48,48
             transforms.Grayscale(num_output_channels=1),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomRotation(10),
