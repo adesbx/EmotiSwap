@@ -120,7 +120,7 @@ def objective(trial: Trial) -> float:
     # Get the dataset.
     train_dataset, val_dataset, test_dataset = core.load_split_data()
     test_dataset_g = test_dataset
-    batch_size = trial.suggest_int("batch", 8, 64) 
+    batch_size = trial.suggest_int("batch", 8, 32) 
     weight = compute_class_weight(train_dataset, 7)
     weight.to(device)
     loss_func = torch.nn.CrossEntropyLoss(weight, label_smoothing=0.1)

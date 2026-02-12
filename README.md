@@ -21,6 +21,13 @@ L’image de votre visage est ensuite envoyée dans le modèle :
 
 Les images utilisées peuvent être modifiées librement.
 
+## Résultat
+
+Deux modèles ont été entraînés:
+
+  - Cnn : 54% d'accuracy
+  - Resnet : 63% d'accuracy
+
 ## Comment changer les images utilisées ?
 
 Il suffit d’ajouter vos images dans les dossiers correspondant à chaque émotion :

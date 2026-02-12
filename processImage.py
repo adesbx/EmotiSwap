@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvirtualcam
 from pyvirtualcam import PixelFormat
-from cnnEmotion import CnnEmotion
+from train import CnnEmotion
 from torchvision import transforms
 from PIL import Image
 from pathlib import Path
