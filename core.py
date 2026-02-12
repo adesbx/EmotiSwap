@@ -39,7 +39,15 @@ class core:
         ])
         train_dataset = datasets.ImageFolder(root="./assets/img/archive/train", transform=transform)
         train_dataset, val_dataset = random_split(train_dataset, percentage)
-        test_dataset = datasets.ImageFolder(root="./assets/img/archive/test", transform=transform)
+
+        test_transform = transforms.Compose([
+            transforms.Resize((96,96)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5]),
+            transforms.Grayscale(num_output_channels=1),
+        ])
+
+        test_dataset = datasets.ImageFolder(root="./assets/img/archive/test", transform=test_transform)
 
 
         class_to_idx = train_dataset.dataset.class_to_idx 
